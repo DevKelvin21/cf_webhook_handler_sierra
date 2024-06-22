@@ -20,12 +20,10 @@ def handle_sierra_job(request):
     site_name = request.args.get('site_name')
 
     request_json = request.get_json(silent=True)
-    lead_id = request_json['resourceList'][0]
-    communication_type = request_json['data']['communicationItemType']
-    communication_id = request_json['data']['communicationItemId']
-    agent_id = request_json['data']['adminUserId']
-    #convert to string agent_id to avoid error
-    agent_id = str(agent_id)
+    lead_id = request_json.get('resourceList', [None])[0]
+    communication_type = request_json.get('data', {}).get('communicationItemType')
+    communication_id = request_json.get('data', {}).get('communicationItemId')
+    agent_id = request_json.get('data', {}).get('adminUserId')
 
     if communication_type != 'PhoneCall':
         return "Not PhoneCall", 200
@@ -38,12 +36,16 @@ def handle_sierra_job(request):
     client_config = client_config_doc.to_dict()
     
     if client_config.get('excludeAgents', False):
+        if not agent_id:
+            return "Missing required data field AgentID", 200
         #exclude agents based on id
-        if agent_id not in client_config.get('allowedAdminUserIds', []):
+        if str(agent_id) not in client_config.get('allowedAdminUserIds', []):
             return f"Agent {agent_id} not allowed", 200
     
     if client_config.get('excludeViciLists', False):
-        vici_list = client_config.get('adminUserIdToViciList', {}).get(agent_id, 0)
+        if not agent_id:
+            return "Missing required data field AgentID", 200
+        vici_list = client_config.get('adminUserIdToViciList', {}).get(str(agent_id), 0)
     else:
         vici_list = client_config.get('viciList', 0)
 
